@@ -120,6 +120,7 @@ void WiFiManager::setupConfigPortal() {
   server->on("/", std::bind(&WiFiManager::handleRoot, this));
   server->on("/wifi", std::bind(&WiFiManager::handleWifi, this, true));
   server->on("/0wifi", std::bind(&WiFiManager::handleWifi, this, false));
+  server->on("/apwifi", std::bind(&WiFiManager::handleApWifi, this));
   server->on("/wifisave", std::bind(&WiFiManager::handleWifiSave, this));
   server->on("/i", std::bind(&WiFiManager::handleInfo, this));
   server->on("/r", std::bind(&WiFiManager::handleReset, this));
@@ -226,13 +227,15 @@ boolean  WiFiManager::startConfigPortal(char const *apName, char const *apPasswo
         break;
       }
     }
+    if (_shouldExitConfig)
+      break;
     yield();
   }
 
   server.reset();
   dnsServer.reset();
 
-  return  WiFi.status() == WL_CONNECTED;
+  return  WiFi.status() == WL_CONNECTED || _isApModeSelected;
 }
 
 
@@ -608,7 +611,32 @@ void WiFiManager::handleWifiSave() {
 
   DEBUG_WM(F("Sent wifi save page"));
 
-  connect = true; //signal ready to connect/reset
+  if (server->arg("apmode") == "") {
+    connect = true; //signal ready to connect/reset
+  } else if (_pass.length() >= 8 && _ssid.length() > 0) {
+    //AP mode
+    _shouldExitConfig = true;
+    WiFi.softAP(_ssid.c_str(), _pass.c_str());
+    WiFi.mode(WIFI_AP);
+  }
+
+}
+
+
+void WiFiManager::handleApWifi() {
+  String page = FPSTR(HTTP_HEAD);
+  page.replace("{v}", "Config AP ESP");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += FPSTR(HTTP_FORM_START);
+  page += FPSTR(HTTP_FORM_AP_MODE);
+  page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_END);
+
+  server->send(200, "text/html", page);
+
 }
 
 /** Handle the info page */
