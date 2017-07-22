@@ -616,6 +616,7 @@ void WiFiManager::handleWifiSave() {
   } else if (_pass.length() >= 8 && _ssid.length() > 0) {
     //AP mode
     _shouldExitConfig = true;
+    _isApModeSelected = true;
     WiFi.softAP(_ssid.c_str(), _pass.c_str());
     WiFi.mode(WIFI_AP);
   }
